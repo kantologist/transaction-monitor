@@ -101,7 +101,7 @@ def predict(edited_frame):
         # st.progress(predict_prob_batch[0], text=f"{round(predict_prob_batch[0], 2)}")
     elif predict_prob_batch[0] >= 0.5:
         st.error(f"High Risk ({round(predict_prob_batch[0], 3) * 100} %) ")
-        st.progress(predict_prob_batch[0], text=f"{round(predict_prob_batch[0], 2)}")
+        # st.progress(predict_prob_batch[0], text=f"{round(predict_prob_batch[0], 2)}")
         # st.error(explanation[32:-7])
     else:
         st.warning(f"Medium Risk ({round(predict_prob_batch[0], 3) * 100} %)")
