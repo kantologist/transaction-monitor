@@ -96,17 +96,17 @@ def predict(edited_frame):
     # st.write(type(explanation))
     # explanation = ast.literal_eval(explanation)
 
-    if predict_prob_batch[0] <= 0.3:
-        st.success("Low Risk")
+    if predict_prob_batch[0] < 0.3:
+        st.success(f"Looks Safe ({round(predict_prob_batch[0], 3) * 100} %)")
         # st.progress(predict_prob_batch[0], text=f"{round(predict_prob_batch[0], 2)}")
     elif predict_prob_batch[0] >= 0.5:
-        st.error("High Risk")
-        # st.progress(predict_prob_batch[0], text=f"{round(predict_prob_batch[0], 2)}")
-        st.error(explanation[32:-7])
+        st.error(f"High Risk ({round(predict_prob_batch[0], 3) * 100} %) ")
+        st.progress(predict_prob_batch[0], text=f"{round(predict_prob_batch[0], 2)}")
+        # st.error(explanation[32:-7])
     else:
-        st.warning("Needs review")
+        st.warning(f"Medium Risk ({round(predict_prob_batch[0], 3) * 100} %)")
         # st.progress(predict_prob_batch[0], text=f"{round(predict_prob_batch[0], 2)}")
-        st.warning(explanation[32:-7])
+        # st.warning(explanation[32:-7])
 
 st.title("Transaction Monitoring Simulator")
 prompt = st.chat_input("Prompt for the kind of Dataset you want to generate")
@@ -137,8 +137,9 @@ if prompt:
                 result = result[0]
             
 
+            st.info("Prompt")
+            st.code(f"{prompt}")
             st.info("Generated Data")
-            st.code(f"Prompt:  {prompt}")
 
             # def form_callback():
             #     st.session_state['result_frame'] = edited_frame
@@ -174,6 +175,14 @@ if prompt:
 
             # st.write(transactionData)
 
+            # Transaction Type
+            if result_frame["type_credit"].item():
+                transactionData["type"] = "credit"
+            if result_frame["type_debit"].item():
+                transactionData["type"] = "debit"
+
+
+            # Transaaction Channel
             if result_frame["channel_api"].item():
                 transactionData["channel"] = "api"
             if result_frame["channel_bank transfer"].item():
@@ -217,6 +226,7 @@ if prompt:
             location = {"latitude": result_frame["transactionLocationLat"].item(),
                         "longitude": result_frame["transactionLocationLong"].item()}
 
+            
             # edited_frame = st.dataframe(result_frame.T,
             #         use_container_width=True)
             
@@ -230,6 +240,25 @@ if prompt:
             
             st.write("location")
             st.dataframe(location, use_container_width=True)
+
+            history = {
+                'Sum of transaction amounts in naira in the last 30 days': result_frame['aggregate_30_amount_sum'].item(), 
+                'Sum of account balances in naira before transactions in the last 30 days': result_frame['aggregate_30_preBalance_sum'].item(),
+                'Average transaction amount in naira in the last 30 days.': result_frame['aggregate_30_amount_mean'].item(),
+                'Average account balance before transactions in the last 30 days': result_frame['aggregate_30_preBalance_mean'].item(),
+                'Number of transactions in the last 30 days.': result_frame['aggregate_30_count'].item(),
+                'Sum of transaction amounts in naira in the last 60 days.': result_frame['aggregate_60_amount_sum'].item(),
+                'Sum of account balances in naira before transactions in the last 60 days': result_frame['aggregate_60_preBalance_sum'].item(),
+                'Average transaction amount in naira in the last 60 days': result_frame['aggregate_60_amount_mean'].item(),
+                'Average account balance before transactions in the last 60 days': result_frame['aggregate_60_preBalance_mean'].item(),
+                'Number of transactions in the last 60 days': result_frame['aggregate_60_count'].item()
+            }
+
+            # history = pd.DataFrame([history])
+            st.write("History")
+            st.dataframe(history, use_container_width=True)
+
+
             
             # edited_frame = edited_frame.T
                 # st.session_state['result_frame'] = edited_frame
