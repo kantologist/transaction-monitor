@@ -5,6 +5,7 @@ import numpy as np
 import json
 from openai import OpenAI
 import streamlit as st
+from botocore.exceptions import ClientError
 
 openai_key = st.secrets["OPENAI_API_KEY"]
 ACCESS_KEY_ID=st.secrets["ACCESS_KEY_ID"]
@@ -42,6 +43,11 @@ runtime= boto3.client('runtime.sagemaker',
                       aws_secret_access_key=SECRET_ACCESS_KEY,
                       region_name='us-east-2')
 
+bedrock = boto3.client('bedrock-runtime', 
+                       aws_access_key_id=ACCESS_KEY_ID,
+                      aws_secret_access_key=SECRET_ACCESS_KEY,
+                      region_name='us-east-2')
+
 
 
 def new_model_predict(wallet_csv, endpoint= NEW_ENDPOINT_NAME):
@@ -74,3 +80,38 @@ def new_parse_response(query_response):
     # print(record_shap_values)
     # predicted_probabilities =  [predictions]
     return np.array([float(predictions)]), record_shap_values
+
+def use_bedrock(input_prompt):
+    model_id = "meta.llama3-3-70b-instruct-v1:0"
+    # Format the request payload using the model's native structure.
+    native_request = {
+        "temperature": 0.5,
+        # "messages": [
+        #      {"role": "system", "content": "You are a helpful assistant and you only respond in python dictionary."},
+        #     {
+        #         "role": "user",
+        #         "content": [{"type": "text", "text": input_prompt}],
+        #     }
+        # ],
+
+        "prompt": f"{input_prompt}. Only respond with a python dictionary"
+    }
+
+    # Convert the native request to JSON.
+    request = json.dumps(native_request)
+
+    try:
+        # Invoke the model with the request.
+        response = bedrock.invoke_model(modelId=model_id, body=request)
+
+    except (ClientError, Exception) as e:
+        print(f"ERROR: Can't invoke '{model_id}'. Reason: {e}")
+        exit(1)
+
+    # Decode the response body.
+    model_response = json.loads(response["body"].read())
+
+    # Extract and print the response text.
+    # st.write(f"Response: {model_response['generation'][10:]}")
+    response_text = model_response["generation"]
+    return response_text

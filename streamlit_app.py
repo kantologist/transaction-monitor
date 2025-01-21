@@ -2,7 +2,7 @@ import ast
 import streamlit as st
 import pandas as pd
 from datetime import datetime, timedelta
-from utils import use_gpt, new_model_predict, new_parse_response
+from utils import use_gpt, new_model_predict, new_parse_response, use_bedrock
 
 
 explanation_dic = {
@@ -109,13 +109,35 @@ def predict(edited_frame):
         # st.warning(explanation[32:-7])
 
 st.title("Transaction Monitoring Simulator")
-prompt = st.chat_input("Prompt for the kind of Dataset you want to generate")
+
+# col1, col2= st.columns(2)
+
+BEDROCK = False
+
+# with col1:
+#     prompt = st.chat_input("Prompt for the kind of Dataset you want to generate")
+
+# with col2: 
+#     option = st.selectbox(
+#         "Select Model",
+#         ("CHAT GPT", "BEDROCK"),
+#     )
+
+with st.container(border=True):
+    prompt = st.chat_input("Prompt for the kind of Dataset you want to generate")
+    option = st.selectbox(
+        "Model",
+        ("Chat GPT", "Amazon BEDROCK"),
+    )
+
+if option == "Amazon BEDROCK":
+    BEDROCK = True
 
 input_sample = pd.read_csv("input_sample.csv", index_col=0)
 
 if prompt:
-    if 'result_frame' in st.session_state:
-        del st.session_state.result_frame
+    # if 'result_frame' in st.session_state:
+    #     del st.session_state.result_frame
 
     @st.fragment
     def predict_spinner():
@@ -130,8 +152,13 @@ if prompt:
             {input_sample.to_dict('records')}
             """
 
-            result = use_gpt(input_prompt)
-            result = ast.literal_eval(result[10:-4])
+            if BEDROCK:
+                result = use_bedrock(input_prompt)
+                result = ast.literal_eval(result[10:])
+            else:
+                result = use_gpt(input_prompt)
+                result = ast.literal_eval(result[10:-4])
+
             # st.write(result)
             if type(result) == list:
                 result = result[0]
