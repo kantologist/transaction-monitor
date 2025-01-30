@@ -6,15 +6,23 @@ import json
 from openai import OpenAI
 import streamlit as st
 from botocore.exceptions import ClientError
+from pymongo import MongoClient
+from bson.objectid import ObjectId
 
 openai_key = st.secrets["OPENAI_API_KEY"]
 ACCESS_KEY_ID=st.secrets["ACCESS_KEY_ID"]
 SECRET_ACCESS_KEY=st.secrets["SECRET_ACCESS_KEY"]
+client = MongoClient(host=st.secrets["MONGODB_URI"])
+db = client[st.secrets["DB_NAME"]]
+transaction_monitor_collection = db[os.environ["TRANSACTION_MONITOR_COLLECTION"]]
 
 openai = OpenAI(
     api_key=openai_key,
 )
 
+
+def write_to_db(input_dic):
+    x = transaction_monitor_collection.insert_one(input_dic)
 
 def use_gpt(input_prompt):
         

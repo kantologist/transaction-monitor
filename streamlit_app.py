@@ -2,7 +2,7 @@ import ast
 import streamlit as st
 import pandas as pd
 from datetime import datetime, timedelta
-from utils import use_gpt, new_model_predict, new_parse_response, use_bedrock
+from utils import use_gpt, new_model_predict, new_parse_response, use_bedrock, write_to_db
 
 
 explanation_dic = {
@@ -46,6 +46,13 @@ explanation_dic = {
     'isIdentityVerified': 'Indicates if the user\'s identity is verified (1 if True, 0 otherwise).'
 }
 
+predicted_payload = {"prompt":"", 
+                    "data_payload":"", 
+                    "prediction_prob":"",
+                    "prediction_class": "",
+                    "explanation": "",
+                    "model": ""}
+
 EXEMPTED_FEATURES = ['transactionLocationLat', 'transactionLocationLong']
 
 def predict(edited_frame):
@@ -59,6 +66,7 @@ def predict(edited_frame):
     columns = edited_frame.columns.tolist()
     predict_prob_batch, explanations = new_parse_response(query_response_batch)  # prediction probability per batch
 
+    predicted_payload["prediction_prob"] = predict_prob_batch[0]
     explanation = ""
     if predict_prob_batch[0] > 0.3:
         
@@ -91,22 +99,29 @@ def predict(edited_frame):
         # input_prompt = f"all the factors {','.join(descriptions)} and their values combined to an explanation for why the transaction might need to be reviewed for fraud as an explanation, showing the values. Credit and debit means direction of payments not cards"
         response = use_gpt(input_prompt)
         explanation  = response
+        # predicted_payload["explanation"] = explanation
 
     st.info("Model Prediction")
     # st.write(type(explanation))
     # explanation = ast.literal_eval(explanation)
+    predicted_payload["explanation"] = explanation[32:-7]
 
     if predict_prob_batch[0] < 0.3:
+        predicted_payload["prediction_class"] = "Looks Safe"
         st.success(f"Looks Safe ({round(predict_prob_batch[0], 3) * 100} %)")
         # st.progress(predict_prob_batch[0], text=f"{round(predict_prob_batch[0], 2)}")
     elif predict_prob_batch[0] >= 0.5:
+        predicted_payload["prediction_class"] = "High Risk"
         st.error(f"High Risk ({round(predict_prob_batch[0], 3) * 100} %) ")
         # st.progress(predict_prob_batch[0], text=f"{round(predict_prob_batch[0], 2)}")
         # st.error(explanation[32:-7])
     else:
+        predicted_payload["prediction_class"] = "Medium Risk"
         st.warning(f"Medium Risk ({round(predict_prob_batch[0], 3) * 100} %)")
         # st.progress(predict_prob_batch[0], text=f"{round(predict_prob_batch[0], 2)}")
         # st.warning(explanation[32:-7])
+    
+    write_to_db(predicted_payload)
 
 st.title("Transaction Monitoring Simulator")
 
@@ -133,11 +148,14 @@ with st.container(border=True):
 if option == "Amazon BEDROCK":
     BEDROCK = True
 
+predicted_payload["model"] = option
+
 input_sample = pd.read_csv("input_sample.csv", index_col=0)
 
 if prompt:
     # if 'result_frame' in st.session_state:
     #     del st.session_state.result_frame
+    predicted_payload["prompt"] = prompt
 
     @st.fragment
     def predict_spinner():
@@ -167,6 +185,8 @@ if prompt:
             st.info("Prompt")
             st.code(f"{prompt}")
             st.info("Generated Data")
+            
+            predicted_payload["data_payload"] = result
 
             # def form_callback():
             #     st.session_state['result_frame'] = edited_frame
